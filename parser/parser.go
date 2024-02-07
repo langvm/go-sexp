@@ -4,89 +4,170 @@
 
 package parser
 
+import (
+	scanner "github.com/langvm/cee-scanner"
+)
+
 type Parser struct {
-	Scanner
+	scanner.Scanner
 
 	ReachedEOF bool
 
 	Token Token
 }
 
-func (p *Parser) Scan() {
-	defer func() {
-		switch v := recover().(type) {
-		case nil:
-			return
-		case EOFError:
-			if p.ReachedEOF {
-				panic(v)
-			} else {
-				p.ReachedEOF = true
-			}
-		default:
-			panic(v)
-		}
-	}()
+func NewParser() Parser {
+	p := Parser{
+		Scanner: scanner.Scanner{
+			Whitespaces: map[rune]int{
+				' ':  1,
+				'\t': 1,
+				'\r': 1,
+				'\n': 1,
+			},
+			Delimiters: map[rune]int{
+				'(': 1,
+				')': 1,
+			},
+		},
+	}
+	return p
+}
 
-	begin, kind, lit := p.Scanner.ScanToken()
+func (p *Parser) Scan() error {
+	begin, kind, format, litRunes, err := p.Scanner.ScanToken()
+	switch err := err.(type) {
+	case nil:
+	case EOFError:
+		if p.ReachedEOF {
+			return err
+		} else {
+			p.ReachedEOF = true
+		}
+	default:
+		return err
+	}
+
+	lit := string(litRunes)
+
+	switch kind {
+	case scanner.MARK:
+		switch lit {
+		case "(":
+			kind = LPAREN
+		case ")":
+			kind = RPAREN
+		default:
+			panic("impossible")
+		}
+	case scanner.IDENT:
+		kind = IDENT
+	case scanner.CHAR:
+		kind = CHAR
+	case scanner.STRING:
+		kind = STRING
+	case scanner.INT:
+		kind = INT
+	case scanner.FLOAT:
+		kind = FLOAT
+	case scanner.COMMENT:
+		return p.Scan()
+	default:
+		panic("impossible")
+	}
+
 	p.Token = Token{
 		PosRange: PosRange{begin, p.Position},
 		Kind:     kind,
+		Format:   format,
 		Literal:  lit,
 	}
+
+	return nil
 }
 
-func (p *Parser) MatchTerm(term int) {
-	tok := p.Token
-
-	p.Scan()
-
-	if tok.Kind != term {
-		panic(UnexpectedToken{Token: p.Token})
+func (p *Parser) MatchTerm(term int) error {
+	if p.Token.Kind != term {
+		return UnexpectedToken{p.Token}
 	}
+
+	err := p.Scan()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (p *Parser) ExpectIdent() Token {
-	tok := p.Token
-	p.MatchTerm(IDENT)
-	return tok
+func (p *Parser) ExpectIdent() (Ident, error) {
+	if p.Token.Kind != IDENT {
+		return Ident{}, UnexpectedToken{p.Token}
+	}
+
+	t := p.Token
+
+	err := p.Scan()
+	if err != nil {
+		return Ident{}, err
+	}
+
+	return Ident{t}, nil
 }
 
-func (p *Parser) ExpectList() List {
-	var list List
+func (p *Parser) ExpectList() (List, error) {
+	err := p.MatchTerm(LPAREN)
+	if err != nil {
+		return List{}, err
+	}
 
-	p.MatchTerm(LPAREN)
+	ident, err := p.ExpectIdent()
+	if err != nil {
+		return List{}, err
+	}
 
-	list.Prefix = p.ExpectIdent()
+	var elements []Node
 
 	for p.Token.Kind != RPAREN {
-		list.List = append(list.List, p.ExpectNode())
+		node, err := p.ExpectNode()
+		if err != nil {
+			return List{}, err
+		}
+		elements = append(elements, node)
 	}
-	p.MatchTerm(RPAREN)
 
-	return list
+	return List{
+		Prefix:   ident,
+		Elements: elements,
+	}, nil
 }
 
-func (p *Parser) ExpectNode() Node {
+func (p *Parser) ExpectNode() (Node, error) {
 	switch p.Token.Kind {
 	case LPAREN:
 		return p.ExpectList()
+	case IDENT:
+		return p.ExpectIdent()
+	case INT:
+		fallthrough
+	case FLOAT:
+		fallthrough
+	case STRING:
+		fallthrough
+	case CHAR:
+		return LiteralValue{p.Token}, nil
 	default:
-		tok := p.Token
-		p.Scan()
-		return tok
+		return nil, UnexpectedToken{p.Token}
 	}
 }
 
-func Parse(data []rune) List {
+func Parse(buf []rune) (List, error) {
 	p := Parser{
-		Scanner: Scanner{
-			BufferScanner{Buffer: data},
+		Scanner: scanner.Scanner{
+			BufferScanner: scanner.BufferScanner{
+				Buffer: buf,
+			},
 		},
-		Token: Token{},
 	}
-
-	p.Scan()
 
 	return p.ExpectList()
 }

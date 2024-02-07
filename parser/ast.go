@@ -4,14 +4,18 @@
 
 package parser
 
-import "fmt"
+import (
+	"fmt"
+	scanner "github.com/langvm/cee-scanner"
+)
 
 type Node interface {
 	GetPosRange() PosRange
+	String() string
 }
 
 type PosRange struct {
-	From, To Position
+	From, To scanner.Position
 }
 
 func (p PosRange) String() string { return fmt.Sprintln(p.From.String(), "->", p.To.String()) }
@@ -20,12 +24,33 @@ func (p PosRange) GetPosRange() PosRange { return p }
 
 type Token struct {
 	PosRange
-	Kind    int
-	Literal string
+	Kind, Format int
+	Literal      string
+}
+
+func (token Token) String() string { return token.Literal }
+
+type Ident struct {
+	Token
+}
+
+type LiteralValue struct {
+	Token
 }
 
 type List struct {
 	PosRange
-	Prefix Token
-	List   []Node
+	Prefix   Ident
+	Elements []Node
+}
+
+func (l List) String() string {
+	return fmt.Sprintln(l.Elements)
+}
+
+func (l List) Map() (m map[string]Node) {
+	for _, e := range l.Elements {
+		m[e.(List).Prefix.Literal] = e
+	}
+	return
 }

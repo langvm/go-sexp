@@ -6,10 +6,11 @@ package parser
 
 import (
 	"fmt"
+	scanner "github.com/langvm/cee-scanner"
 )
 
 type EOFError struct {
-	Pos Position
+	Pos scanner.Scanner
 }
 
 func (e EOFError) Error() string {
@@ -17,7 +18,7 @@ func (e EOFError) Error() string {
 }
 
 type UnknownEscapeCharError struct {
-	Pos Position
+	Pos scanner.Position
 
 	Char rune
 }
@@ -27,7 +28,7 @@ func (e UnknownEscapeCharError) Error() string {
 }
 
 type NonClosedQuoteError struct {
-	Pos Position
+	Pos scanner.Position
 }
 
 func (e NonClosedQuoteError) Error() string {
@@ -35,7 +36,7 @@ func (e NonClosedQuoteError) Error() string {
 }
 
 type FormatError struct {
-	Pos Position
+	Pos scanner.Position
 }
 
 func (e FormatError) Error() string {
