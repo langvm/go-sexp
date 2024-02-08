@@ -38,11 +38,12 @@ func (p *Parser) Scan() error {
 	begin, kind, format, litRunes, err := p.Scanner.ScanToken()
 	switch err := err.(type) {
 	case nil:
-	case EOFError:
+	case scanner.EOFError:
 		if p.ReachedEOF {
 			return err
 		} else {
 			p.ReachedEOF = true
+			return nil
 		}
 	default:
 		return err
@@ -99,6 +100,17 @@ func (p *Parser) MatchTerm(term int) error {
 	return nil
 }
 
+func (p *Parser) ExpectLiteralValue() (LiteralValue, error) {
+	t := p.Token
+
+	err := p.Scan()
+	if err != nil {
+		return LiteralValue{}, err
+	}
+
+	return LiteralValue{t}, nil
+}
+
 func (p *Parser) ExpectIdent() (Ident, error) {
 	if p.Token.Kind != IDENT {
 		return Ident{}, UnexpectedToken{p.Token}
@@ -135,6 +147,11 @@ func (p *Parser) ExpectList() (List, error) {
 		elements = append(elements, node)
 	}
 
+	err = p.MatchTerm(RPAREN)
+	if err != nil {
+		return List{}, err
+	}
+
 	return List{
 		Prefix:   ident,
 		Elements: elements,
@@ -154,7 +171,7 @@ func (p *Parser) ExpectNode() (Node, error) {
 	case STRING:
 		fallthrough
 	case CHAR:
-		return LiteralValue{p.Token}, nil
+		return p.ExpectLiteralValue()
 	default:
 		return nil, UnexpectedToken{p.Token}
 	}
@@ -166,7 +183,21 @@ func Parse(buf []rune) (List, error) {
 			BufferScanner: scanner.BufferScanner{
 				Buffer: buf,
 			},
+			Whitespaces: map[rune]int{
+				' ':  1,
+				'\n': 1,
+				'\t': 1,
+				'\r': 1,
+			},
+			Delimiters: map[rune]int{
+				'(': 1,
+				')': 1,
+			},
 		},
+	}
+	err := p.Scan()
+	if err != nil {
+		return List{}, err
 	}
 
 	return p.ExpectList()

@@ -9,32 +9,6 @@ import (
 	scanner "github.com/langvm/cee-scanner"
 )
 
-type EOFError struct {
-	Pos scanner.Scanner
-}
-
-func (e EOFError) Error() string {
-	return "EOF"
-}
-
-type UnknownEscapeCharError struct {
-	Pos scanner.Position
-
-	Char rune
-}
-
-func (e UnknownEscapeCharError) Error() string {
-	return fmt.Sprintln(e.Pos.String(), "unknown escape char:", e.Char)
-}
-
-type NonClosedQuoteError struct {
-	Pos scanner.Position
-}
-
-func (e NonClosedQuoteError) Error() string {
-	return fmt.Sprintln(e.Pos.String(), "the string is not closed")
-}
-
 type FormatError struct {
 	Pos scanner.Position
 }

@@ -49,6 +49,7 @@ func (l List) String() string {
 }
 
 func (l List) Map() (m map[string]Node) {
+	m = map[string]Node{}
 	for _, e := range l.Elements {
 		m[e.(List).Prefix.Literal] = e
 	}
