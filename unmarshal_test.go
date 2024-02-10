@@ -5,6 +5,7 @@
 package sexp
 
 import (
+	"fmt"
 	"sexp/parser"
 	"testing"
 )
@@ -14,11 +15,12 @@ func TestUnmarshalStruct(t *testing.T) {
 		IntA    int
 		StructA struct {
 			IntB, IntC int
+			ArrA       []int
 		}
 	}{}
 
 	list, err := parser.Parse([]rune(`
-(a (IntA 1) (StructA (IntB 2) (IntC 3)))
+(a (IntA 1) (StructA (IntB 2) (IntC 3) (ArrA 1 2 3 4 5 6)))
 `))
 	if err != nil {
 		t.Fatal(err)
@@ -31,5 +33,5 @@ func TestUnmarshalStruct(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	println(v.IntA, v.StructA.IntB, v.StructA.IntC)
+	fmt.Println(v.IntA, v.StructA.IntB, v.StructA.IntC, v.StructA.ArrA)
 }
